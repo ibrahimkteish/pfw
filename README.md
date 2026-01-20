@@ -1,3 +1,7 @@
+> ![NOTE]
+> Nothing to see here yet.
+
+<!--
 # The Point-Free Way CLI
 
 A CLI tool for downloading and managing Point-Free Way skills.
@@ -23,3 +27,4 @@ pfw login
 ```
 pfw install
 ```
+-->
