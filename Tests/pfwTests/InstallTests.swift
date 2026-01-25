@@ -19,22 +19,29 @@ struct InstallPathValidationTests {
     #expect(Install.validateInstallPath("/home/user/.codex/skills", tool: .codex))
   }
 
+  @Test("Flexible directory naming is supported")
+  func flexibleDirectoryNaming() {
+    // Support different directory naming conventions (e.g., .github for copilot)
+    #expect(Install.validateInstallPath("/Users/test/.github/skills", tool: .claude))
+    #expect(Install.validateInstallPath("/project/.config/skills", tool: .codex))
+    #expect(Install.validateInstallPath("/home/user/my-project/skills", tool: .claude))
+  }
+
   @Test("Invalid paths are rejected")
   func invalidPathsRejected() {
-    // Paths without .claude/skills or .codex/skills
+    // Paths without /skills
     #expect(!Install.validateInstallPath("/tmp", tool: .claude))
     #expect(!Install.validateInstallPath("/Users/test/Downloads", tool: .claude))
     #expect(!Install.validateInstallPath("/project", tool: .codex))
     #expect(!Install.validateInstallPath("/home/user/.claude", tool: .claude))
-    #expect(!Install.validateInstallPath("/home/user/skills", tool: .claude))
   }
 
-  @Test("Wrong tool paths are rejected")
-  func wrongToolPathsRejected() {
-    // Claude path with Codex tool
-    #expect(!Install.validateInstallPath("/Users/test/.claude/skills", tool: .codex))
-    // Codex path with Claude tool
-    #expect(!Install.validateInstallPath("/Users/test/.codex/skills", tool: .claude))
+  @Test("Paths containing skills keyword are accepted")
+  func pathsContainingSkillsAccepted() {
+    // Any path with /skills is valid regardless of tool
+    #expect(Install.validateInstallPath("/Users/test/.claude/skills", tool: .codex))
+    #expect(Install.validateInstallPath("/Users/test/.codex/skills", tool: .claude))
+    #expect(Install.validateInstallPath("/home/user/skills", tool: .claude))
   }
 }
 
@@ -44,11 +51,6 @@ struct CurrentDirectoryDetectionTests {
   @Test("Dot is recognized as current directory")
   func dotIsCurrentDirectory() {
     #expect(Install.isCurrentDirectoryPath("."))
-  }
-
-  @Test("'current' keyword is recognized as current directory")
-  func currentKeywordIsCurrentDirectory() {
-    #expect(Install.isCurrentDirectoryPath("current"))
   }
 
   @Test("nil is not current directory")
@@ -77,13 +79,6 @@ struct InstallURLResolutionTests {
   func resolvesToCurrentDirectoryForDot() {
     let currentDir = "/Users/test/.claude/skills"
     let url = Install.resolveInstallURL(path: ".", tool: .claude, currentDirectory: currentDir)
-    #expect(url.path == currentDir)
-  }
-
-  @Test("Resolves to current directory when path is 'current'")
-  func resolvesToCurrentDirectoryForCurrentKeyword() {
-    let currentDir = "/Users/test/.codex/skills"
-    let url = Install.resolveInstallURL(path: "current", tool: .codex, currentDirectory: currentDir)
     #expect(url.path == currentDir)
   }
 
@@ -137,12 +132,13 @@ struct EdgeCasesTests {
     #expect(!Install.isCurrentDirectoryPath("  "))
   }
 
-  @Test("Case sensitive tool validation")
-  func caseSensitiveToolValidation() {
-    // .claude (lowercase) should match
+  @Test("Skills keyword validation is case sensitive")
+  func skillsKeywordCaseSensitive() {
+    // Lowercase /skills should match
     #expect(Install.validateInstallPath("/Users/test/.claude/skills", tool: .claude))
-    // .Claude (capitalized) should not match
-    #expect(!Install.validateInstallPath("/Users/test/.Claude/skills", tool: .claude))
+    // Capitalized /Skills or /SKILLS should not match (path is case-sensitive)
+    #expect(!Install.validateInstallPath("/Users/test/.claude/Skills", tool: .claude))
+    #expect(!Install.validateInstallPath("/Users/test/.claude/SKILLS", tool: .claude))
   }
 
   @Test("Path with multiple dots")

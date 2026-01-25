@@ -27,7 +27,7 @@ struct Install: AsyncParsableCommand {
   )
   var tool: Tool = .codex
 
-  @Option(help: "Directory to install skills into. Use '.' or 'current' for current directory.")
+  @Option(help: "Directory to install skills into. Use '.' for current directory.")
   var path: String?
 
   func run() async throws {
@@ -37,12 +37,13 @@ struct Install: AsyncParsableCommand {
   // MARK: - Testable Helper Functions
 
   static func isCurrentDirectoryPath(_ path: String?) -> Bool {
-    path == "." || path == "current"
+    path == "."
   }
 
   static func validateInstallPath(_ installPath: String, tool: Tool) -> Bool {
-    let expectedPattern = ".\(tool.rawValue)/skills"
-    return installPath.contains(expectedPattern)
+    // Allow any path that contains /skills to support different directory naming conventions
+    // (e.g., .codex/skills, .claude/skills, .github/skills, .copilot/skills)
+    return installPath.contains("/skills")
   }
 
   static func resolveInstallURL(
@@ -102,14 +103,14 @@ struct Install: AsyncParsableCommand {
       guard Self.validateInstallPath(installPath, tool: tool) else {
         print("Error: Install path is not in the expected location.")
         print("")
-        print("The install path must contain '.\(tool.rawValue)/skills' in it.")
+        print("The install path must contain '/skills' in it.")
         print("")
         print("Valid options:")
         print("  1. Use default path: pfw install --tool \(tool.rawValue)")
         print("     Installs to: ~/.\(tool.rawValue)/skills/the-point-free-way")
         print("")
-        print("  2. Use custom path ending with '.\(tool.rawValue)/skills':")
-        print("     pfw install --tool \(tool.rawValue) --path /your/project/.\(tool.rawValue)/skills")
+        print("  2. Use custom path containing '/skills':")
+        print("     pfw install --tool \(tool.rawValue) --path /your/project/.config/skills")
         print("")
         print("Current install path: \(installPath)")
         throw ExitCode.failure
