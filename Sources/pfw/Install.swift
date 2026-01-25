@@ -27,7 +27,7 @@ struct Install: AsyncParsableCommand {
   )
   var tool: Tool = .codex
 
-  @Option(help: "Directory to install skills into.")
+  @Option(help: "Directory to install skills into. Use '.' or 'current' for current directory.")
   var path: String?
 
   func run() async throws {
@@ -68,9 +68,89 @@ struct Install: AsyncParsableCommand {
     let zipURL = URL.temporaryDirectory.appending(path: UUID().uuidString)
     try data.write(to: zipURL)
 
-    let installURL = URL(fileURLWithPath: path ?? tool.defaultInstallPath.path)
-    try? FileManager.default.removeItem(at: installURL)
-    try FileManager.default.unzipItem(at: zipURL, to: installURL)
-    print("Installed skills for \(tool.rawValue) into \(installURL.path)")
+    // Determine if installing to current directory
+    let isCurrentDirectory = path == "." || path == "current"
+    let installURL: URL
+
+    if isCurrentDirectory {
+      installURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    } else {
+      installURL = URL(fileURLWithPath: path ?? tool.defaultInstallPath.path)
+    }
+
+    // Verify the install path is in the expected location (only if custom path provided)
+    if path != nil {
+      let installPath = installURL.path
+      let expectedPattern = ".\(tool.rawValue)/skills"
+
+      guard installPath.contains(expectedPattern) else {
+        print("Error: Install path is not in the expected location.")
+        print("")
+        print("The install path must contain '.\(tool.rawValue)/skills' in it.")
+        print("")
+        print("Valid options:")
+        print("  1. Use default path: pfw install --tool \(tool.rawValue)")
+        print("     Installs to: ~/.\(tool.rawValue)/skills/the-point-free-way")
+        print("")
+        print("  2. Use custom path ending with '.\(tool.rawValue)/skills':")
+        print("     pfw install --tool \(tool.rawValue) --path /your/project/.\(tool.rawValue)/skills")
+        print("")
+        print("Current install path: \(installPath)")
+        throw ExitCode.failure
+      }
+
+      // Ask for confirmation when using custom path
+      print("You are about to install into:")
+      print("  \(installPath)")
+      print("\nThis will merge new skills with existing ones without removing current files.")
+      print("Continue? (yes/no): ", terminator: "")
+
+      guard let response = readLine()?.lowercased(),
+            response == "yes" || response == "y" else {
+        print("Installation cancelled.")
+        throw ExitCode.success
+      }
+    }
+
+    // Always merge - never remove existing files
+    // The zip contains a top-level "skills" folder, so we extract to a temp location
+    // and then move the contents of the skills folder to the target location
+    let tempExtractURL = URL.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: tempExtractURL, withIntermediateDirectories: true)
+
+    try FileManager.default.unzipItem(at: zipURL, to: tempExtractURL)
+
+    // The zip extracts to tempExtractURL/skills/, we want to move its contents to installURL
+    let extractedSkillsURL = tempExtractURL.appending(path: "skills")
+
+    // Ensure target directory exists
+    try FileManager.default.createDirectory(at: installURL, withIntermediateDirectories: true)
+
+    // Move each skill from the extracted location to the target
+    let skillDirs = try FileManager.default.contentsOfDirectory(
+      at: extractedSkillsURL,
+      includingPropertiesForKeys: nil
+    )
+
+    for skillURL in skillDirs {
+      let targetURL = installURL.appending(path: skillURL.lastPathComponent)
+
+      // If the skill already exists, remove it first (we're replacing individual skills, not the whole directory)
+      if FileManager.default.fileExists(atPath: targetURL.path) {
+        try FileManager.default.removeItem(at: targetURL)
+      }
+
+      try FileManager.default.moveItem(at: skillURL, to: targetURL)
+    }
+
+    // Clean up temp directory
+    try? FileManager.default.removeItem(at: tempExtractURL)
+    try? FileManager.default.removeItem(at: zipURL)
+
+    if isCurrentDirectory {
+      print("Successfully merged skills into \(installURL.path)")
+    } else {
+      print("Installed and merged skills for \(tool.rawValue) into \(installURL.path)")
+    }
   }
 }
