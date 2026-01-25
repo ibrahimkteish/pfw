@@ -64,30 +64,10 @@ fastlane/test_output
 # IDE
 .vscode/
 
-# Point-Free Way directories
-#
-# Skills storage locations:
-#   ~/.pfw/skills/         - Global storage (user-level, all projects)
-#   .pfw/skills/           - Local storage (project-level, can be committed)
-#
-# Global symlinks (user-level):
-#   ~/.cursor/skills/      - Cursor global
-#   ~/.claude/skills/      - Claude global
-#   ~/.codex/skills/       - Codex global
-#   ~/.kiro/skills/        - Kiro global
-#   ~/.gemini/skills/      - Gemini global
-#   ~/.gemini/antigravity/global_skills/  - Anti-Gravity global
-#
-# Workspace symlinks (project-level - add to .gitignore if using):
-#   .cursor/skills/        - Cursor workspace
-#   .claude/skills/        - Claude workspace
-#   .codex/skills/         - Codex workspace
-#   .kiro/skills/          - Kiro workspace
-#   .gemini/skills/        - Gemini workspace
-#   .agent/skills/         - Anti-Gravity workspace
-#
-# To share skills with your team:
-#   1. Use: pfw install --local
-#      (--local automatically enables --workspace)
-#   2. Commit .pfw/skills/ to git
-#   3. Add workspace symlinks to .gitignore
+# Point-Free Way workspace symlinks (uncomment if using --workspace or --local)
+# .cursor/skills/    # Cursor workspace
+# .claude/skills/    # Claude workspace
+# .codex/skills/     # Codex workspace
+# .kiro/skills/      # Kiro workspace
+# .gemini/skills/    # Gemini workspace
+# .agent/skills/     # Anti-Gravity workspace

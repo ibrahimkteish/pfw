@@ -273,6 +273,7 @@ struct Install: AsyncParsableCommand {
     print("✓ Skills installed to \(expandedInstallURL.path)")
 
     // Create symlinks for each selected tool (unless installing to current directory)
+    var failedSymlinks: [Tool] = []
     if !isCurrentDirectory {
       print("")
       let storageLocation = local ? "local (.pfw/skills)" : "global (~/.pfw/skills)"
@@ -288,11 +289,18 @@ struct Install: AsyncParsableCommand {
           print("✓ \(tool.rawValue): \(symlinkPath.path) \(arrow)")
         } catch {
           print("✗ \(tool.rawValue): Failed to create symlink - \(error.localizedDescription)")
+          failedSymlinks.append(tool)
         }
       }
     }
 
     print("")
-    print("Installation complete!")
+    if failedSymlinks.isEmpty {
+      print("Installation complete!")
+    } else {
+      let failedNames = failedSymlinks.map(\.rawValue).joined(separator: ", ")
+      print("Installation completed with errors. Failed symlinks: \(failedNames)")
+      throw ExitCode.failure
+    }
   }
 }

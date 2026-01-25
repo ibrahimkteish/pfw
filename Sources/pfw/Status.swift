@@ -35,8 +35,18 @@ struct Status: ParsableCommand {
     print("AI Tool Symlinks:")
     print("")
     print("Global (user-level):")
+    printSymlinkStatus(workspace: false)
+
+    print("")
+    print("Workspace (project-level):")
+    printSymlinkStatus(workspace: true)
+  }
+
+  private func printSymlinkStatus(workspace: Bool) {
+    let fileManager = FileManager.default
+
     for tool in Install.Tool.allCases {
-      let symlinkPath = tool.symlinkPath(workspace: false)
+      let symlinkPath = tool.symlinkPath(workspace: workspace)
       let expandedSymlinkPath = URL(fileURLWithPath: NSString(string: symlinkPath.path).expandingTildeInPath)
 
       if fileManager.fileExists(atPath: expandedSymlinkPath.path) {
@@ -58,9 +68,5 @@ struct Status: ParsableCommand {
         print("  ✗ \(tool.rawValue): \(symlinkPath.path) (not installed)")
       }
     }
-
-    print("")
-    print("Workspace-specific (project-level):")
-    print("  Run 'pfw status' from a project directory to check workspace symlinks")
   }
 }
