@@ -5,43 +5,38 @@ import Foundation
 @Suite("Install Path Validation Tests")
 struct InstallPathValidationTests {
 
-  @Test("Valid Claude skills path is accepted")
-  func validClaudeSkillsPath() {
-    #expect(Install.validateInstallPath("/Users/test/.claude/skills", tool: .claude))
-    #expect(Install.validateInstallPath("/project/.claude/skills/my-skills", tool: .claude))
-    #expect(Install.validateInstallPath("/home/user/.claude/skills", tool: .claude))
-  }
-
-  @Test("Valid Codex skills path is accepted")
-  func validCodexSkillsPath() {
-    #expect(Install.validateInstallPath("/Users/test/.codex/skills", tool: .codex))
-    #expect(Install.validateInstallPath("/project/.codex/skills/custom", tool: .codex))
-    #expect(Install.validateInstallPath("/home/user/.codex/skills", tool: .codex))
+  @Test("Valid skills paths are accepted")
+  func validSkillsPath() {
+    #expect(Install.validateInstallPath("/Users/test/.claude/skills"))
+    #expect(Install.validateInstallPath("/project/.codex/skills/my-skills"))
+    #expect(Install.validateInstallPath("/home/user/.pfw/skills"))
+    #expect(Install.validateInstallPath("/Users/test/.cursor/skills"))
   }
 
   @Test("Flexible directory naming is supported")
   func flexibleDirectoryNaming() {
-    // Support different directory naming conventions (e.g., .github for copilot)
-    #expect(Install.validateInstallPath("/Users/test/.github/skills", tool: .claude))
-    #expect(Install.validateInstallPath("/project/.config/skills", tool: .codex))
-    #expect(Install.validateInstallPath("/home/user/my-project/skills", tool: .claude))
+    // Support different directory naming conventions
+    #expect(Install.validateInstallPath("/Users/test/.github/skills"))
+    #expect(Install.validateInstallPath("/project/.config/skills"))
+    #expect(Install.validateInstallPath("/home/user/my-project/skills"))
   }
 
   @Test("Invalid paths are rejected")
   func invalidPathsRejected() {
     // Paths without /skills
-    #expect(!Install.validateInstallPath("/tmp", tool: .claude))
-    #expect(!Install.validateInstallPath("/Users/test/Downloads", tool: .claude))
-    #expect(!Install.validateInstallPath("/project", tool: .codex))
-    #expect(!Install.validateInstallPath("/home/user/.claude", tool: .claude))
+    #expect(!Install.validateInstallPath("/tmp"))
+    #expect(!Install.validateInstallPath("/Users/test/Downloads"))
+    #expect(!Install.validateInstallPath("/project"))
+    #expect(!Install.validateInstallPath("/home/user/.claude"))
   }
 
   @Test("Paths containing skills keyword are accepted")
   func pathsContainingSkillsAccepted() {
-    // Any path with /skills is valid regardless of tool
-    #expect(Install.validateInstallPath("/Users/test/.claude/skills", tool: .codex))
-    #expect(Install.validateInstallPath("/Users/test/.codex/skills", tool: .claude))
-    #expect(Install.validateInstallPath("/home/user/skills", tool: .claude))
+    // Any path with /skills is valid
+    #expect(Install.validateInstallPath("/Users/test/.claude/skills"))
+    #expect(Install.validateInstallPath("/Users/test/.codex/skills"))
+    #expect(Install.validateInstallPath("/home/user/skills"))
+    #expect(Install.validateInstallPath("/Users/test/.pfw/skills"))
   }
 }
 
@@ -77,44 +72,101 @@ struct InstallURLResolutionTests {
 
   @Test("Resolves to current directory when path is dot")
   func resolvesToCurrentDirectoryForDot() {
+    var install = Install()
+    install.local = false
     let currentDir = "/Users/test/.claude/skills"
-    let url = Install.resolveInstallURL(path: ".", tool: .claude, currentDirectory: currentDir)
+    let url = install.resolveInstallURL(path: ".", currentDirectory: currentDir)
     #expect(url.path == currentDir)
   }
 
   @Test("Resolves to custom path when provided")
   func resolvesToCustomPath() {
+    var install = Install()
+    install.local = false
     let customPath = "/project/.claude/skills"
-    let url = Install.resolveInstallURL(path: customPath, tool: .claude)
+    let url = install.resolveInstallURL(path: customPath)
     #expect(url.path == customPath)
   }
 
-  @Test("Resolves to default path when path is nil for Claude")
-  func resolvesToDefaultPathForClaude() {
-    let url = Install.resolveInstallURL(path: nil, tool: .claude)
-    #expect(url.path.contains(".claude/skills/the-point-free-way"))
+  @Test("Resolves to global path when path is nil and not local")
+  func resolvesToGlobalPath() {
+    var install = Install()
+    install.local = false
+    let url = install.resolveInstallURL(path: nil)
+    #expect(url.path.contains(".pfw/skills"))
+    #expect(url.path.hasPrefix("/"))
   }
 
-  @Test("Resolves to default path when path is nil for Codex")
-  func resolvesToDefaultPathForCodex() {
-    let url = Install.resolveInstallURL(path: nil, tool: .codex)
-    #expect(url.path.contains(".codex/skills/the-point-free-way"))
+  @Test("Resolves to local path when path is nil and local flag set")
+  func resolvesToLocalPath() {
+    var install = Install()
+    install.local = true
+    let url = install.resolveInstallURL(path: nil)
+    #expect(url.path.hasSuffix(".pfw/skills"))
   }
 }
 
-@Suite("Tool Default Paths Tests")
-struct ToolDefaultPathsTests {
+@Suite("Tool Symlink Paths Tests")
+struct ToolSymlinkPathsTests {
 
-  @Test("Claude default path contains correct pattern")
-  func claudeDefaultPath() {
-    let path = Install.Tool.claude.defaultInstallPath
-    #expect(path.path.contains(".claude/skills/the-point-free-way"))
+  @Test("Cursor global symlink path")
+  func cursorGlobalPath() {
+    let url = Install.Tool.cursor.symlinkPath(workspace: false)
+    #expect(url.path.contains(".cursor/skills"))
+    #expect(url.path.hasPrefix("/"))
   }
 
-  @Test("Codex default path contains correct pattern")
-  func codexDefaultPath() {
-    let path = Install.Tool.codex.defaultInstallPath
-    #expect(path.path.contains(".codex/skills/the-point-free-way"))
+  @Test("Cursor workspace symlink path")
+  func cursorWorkspacePath() {
+    let url = Install.Tool.cursor.symlinkPath(workspace: true)
+    #expect(url.path.hasSuffix(".cursor/skills"))
+  }
+
+  @Test("Claude global symlink path")
+  func claudeGlobalPath() {
+    let url = Install.Tool.claude.symlinkPath(workspace: false)
+    #expect(url.path.contains(".claude/skills"))
+    #expect(url.path.hasPrefix("/"))
+  }
+
+  @Test("Claude workspace symlink path")
+  func claudeWorkspacePath() {
+    let url = Install.Tool.claude.symlinkPath(workspace: true)
+    #expect(url.path.hasSuffix(".claude/skills"))
+  }
+
+  @Test("Anti-Gravity global symlink path")
+  func antigravityGlobalPath() {
+    let url = Install.Tool.antigravity.symlinkPath(workspace: false)
+    #expect(url.path.contains(".gemini/antigravity/global_skills"))
+    #expect(url.path.hasPrefix("/"))
+  }
+
+  @Test("Anti-Gravity workspace symlink path")
+  func antigravityWorkspacePath() {
+    let url = Install.Tool.antigravity.symlinkPath(workspace: true)
+    #expect(url.path.hasSuffix(".agent/skills"))
+  }
+
+  @Test("Codex global symlink path")
+  func codexGlobalPath() {
+    let url = Install.Tool.codex.symlinkPath(workspace: false)
+    #expect(url.path.contains(".codex/skills"))
+    #expect(url.path.hasPrefix("/"))
+  }
+
+  @Test("Kiro global symlink path")
+  func kiroGlobalPath() {
+    let url = Install.Tool.kiro.symlinkPath(workspace: false)
+    #expect(url.path.contains(".kiro/skills"))
+    #expect(url.path.hasPrefix("/"))
+  }
+
+  @Test("Gemini global symlink path")
+  func geminiGlobalPath() {
+    let url = Install.Tool.gemini.symlinkPath(workspace: false)
+    #expect(url.path.contains(".gemini/skills"))
+    #expect(url.path.hasPrefix("/"))
   }
 }
 
@@ -135,21 +187,21 @@ struct EdgeCasesTests {
   @Test("Skills keyword validation is case sensitive")
   func skillsKeywordCaseSensitive() {
     // Lowercase /skills should match
-    #expect(Install.validateInstallPath("/Users/test/.claude/skills", tool: .claude))
+    #expect(Install.validateInstallPath("/Users/test/.claude/skills"))
     // Capitalized /Skills or /SKILLS should not match (path is case-sensitive)
-    #expect(!Install.validateInstallPath("/Users/test/.claude/Skills", tool: .claude))
-    #expect(!Install.validateInstallPath("/Users/test/.claude/SKILLS", tool: .claude))
+    #expect(!Install.validateInstallPath("/Users/test/.claude/Skills"))
+    #expect(!Install.validateInstallPath("/Users/test/.claude/SKILLS"))
   }
 
   @Test("Path with multiple dots")
   func pathWithMultipleDots() {
-    #expect(Install.validateInstallPath("/Users/test.user/.claude/skills", tool: .claude))
-    #expect(Install.validateInstallPath("/Users/test/.config/.claude/skills", tool: .claude))
+    #expect(Install.validateInstallPath("/Users/test.user/.claude/skills"))
+    #expect(Install.validateInstallPath("/Users/test/.config/.claude/skills"))
   }
 
   @Test("Path with trailing slashes")
   func pathWithTrailingSlashes() {
-    #expect(Install.validateInstallPath("/Users/test/.claude/skills/", tool: .claude))
-    #expect(Install.validateInstallPath("/Users/test/.claude/skills//", tool: .claude))
+    #expect(Install.validateInstallPath("/Users/test/.claude/skills/"))
+    #expect(Install.validateInstallPath("/Users/test/.claude/skills//"))
   }
 }

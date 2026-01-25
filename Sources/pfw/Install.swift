@@ -12,23 +12,63 @@ struct Install: AsyncParsableCommand {
   )
 
   enum Tool: String, CaseIterable, ExpressibleByArgument {
+    case cursor
     case codex
     case claude
-    var defaultInstallPath: URL {
-      URL(filePath: "~/.\(rawValue)/skills/the-point-free-way")
+    case antigravity
+    case kiro
+    case gemini
+
+    func symlinkPath(workspace: Bool) -> URL {
+      if workspace {
+        // Workspace-specific paths
+        switch self {
+        case .antigravity:
+          return URL(filePath: ".agent/skills")
+        default:
+          return URL(filePath: ".\(rawValue)/skills")
+        }
+      } else {
+        // Global (user-level) paths
+        switch self {
+        case .antigravity:
+          return URL(filePath: "~/.gemini/antigravity/global_skills")
+        default:
+          return URL(filePath: "~/.\(rawValue)/skills")
+        }
+      }
     }
   }
 
   @Option(
+    parsing: .upToNextOption,
     help: """
-      Which AI tool to install skills for. \
-      Options: \(Tool.allCases.map(\.rawValue).joined(separator: ", ")).
+      Which AI tools to create symlinks for. \
+      Options: \(Tool.allCases.map(\.rawValue).joined(separator: ", ")). \
+      Can specify multiple: --tools cursor claude codex
       """
   )
-  var tool: Tool = .codex
+  var tools: [Tool] = []
 
-  @Option(help: "Directory to install skills into. Use '.' for current directory.")
+  @Flag(help: "Install for all supported AI tools.")
+  var all: Bool = false
+
+  @Flag(help: "Store skills locally in project (.pfw/skills) instead of globally in home (~/.pfw/skills).")
+  var local: Bool = false
+
+  @Flag(help: "Create symlinks in workspace directories (.cursor/skills) instead of global directories (~/.cursor/skills).")
+  var workspace: Bool = false
+
+  @Option(help: "Custom directory to install skills into. Use '.' for current directory.")
   var path: String?
+
+  var skillsStoragePath: URL {
+    if local {
+      return URL(filePath: ".pfw/skills")
+    } else {
+      return URL(filePath: "~/.pfw/skills")
+    }
+  }
 
   func run() async throws {
     try await install(shouldRetryAfterLogin: true)
@@ -40,29 +80,94 @@ struct Install: AsyncParsableCommand {
     path == "."
   }
 
-  static func validateInstallPath(_ installPath: String, tool: Tool) -> Bool {
+  static func validateInstallPath(_ installPath: String) -> Bool {
     // Allow any path that contains /skills to support different directory naming conventions
-    // (e.g., .codex/skills, .claude/skills, .github/skills, .copilot/skills)
     return installPath.contains("/skills")
   }
 
-  static func resolveInstallURL(
+  func resolveInstallURL(
     path: String?,
-    tool: Tool,
     currentDirectory: String = FileManager.default.currentDirectoryPath
   ) -> URL {
-    if isCurrentDirectoryPath(path) {
+    if Self.isCurrentDirectoryPath(path) {
       return URL(fileURLWithPath: currentDirectory)
     } else {
-      return URL(fileURLWithPath: path ?? tool.defaultInstallPath.path)
+      return URL(fileURLWithPath: path ?? skillsStoragePath.path)
     }
   }
 
+  static func promptForTools() -> [Tool] {
+    print("Which AI tools would you like to install skills for?")
+    print("")
+    for (index, tool) in Tool.allCases.enumerated() {
+      print("  \(index + 1). \(tool.rawValue)")
+    }
+    print("  \(Tool.allCases.count + 1). All of the above")
+    print("")
+    print("Enter numbers separated by spaces (e.g., '1 3 5'): ", terminator: "")
+
+    guard let input = readLine()?.trimmingCharacters(in: .whitespaces),
+          !input.isEmpty else {
+      print("No selection made. Defaulting to Cursor.")
+      return [.cursor]
+    }
+
+    let selections = input.split(separator: " ").compactMap { Int($0) }
+
+    if selections.contains(Tool.allCases.count + 1) {
+      return Tool.allCases
+    }
+
+    let selectedTools = selections.compactMap { index -> Tool? in
+      guard index > 0 && index <= Tool.allCases.count else { return nil }
+      return Tool.allCases[index - 1]
+    }
+
+    return selectedTools.isEmpty ? [.cursor] : selectedTools
+  }
+
+  static func createSymlink(from symlinkPath: URL, to targetPath: URL) throws {
+    let fileManager = FileManager.default
+    let expandedSymlinkPath = URL(fileURLWithPath: NSString(string: symlinkPath.path).expandingTildeInPath)
+    let expandedTargetPath = URL(fileURLWithPath: NSString(string: targetPath.path).expandingTildeInPath)
+
+    // Create parent directory if needed
+    let parentDir = expandedSymlinkPath.deletingLastPathComponent()
+    try fileManager.createDirectory(at: parentDir, withIntermediateDirectories: true)
+
+    // Remove existing symlink or directory if present
+    if fileManager.fileExists(atPath: expandedSymlinkPath.path) {
+      try fileManager.removeItem(at: expandedSymlinkPath)
+    }
+
+    // Create symlink
+    try fileManager.createSymbolicLink(at: expandedSymlinkPath, withDestinationURL: expandedTargetPath)
+  }
+
   private func install(shouldRetryAfterLogin: Bool) async throws {
+    // Local skills must use workspace symlinks (can't symlink different projects to same global location)
+    if local && !workspace {
+      print("Note: --local automatically enables --workspace")
+      print("(Local skills from different projects would conflict if symlinked globally)")
+      print("")
+    }
+    let useWorkspace = workspace || local
+
+    // Determine which tools to install for
+    var selectedTools = tools
+    if all {
+      selectedTools = Tool.allCases
+    } else if selectedTools.isEmpty {
+      // Interactive prompt
+      selectedTools = Self.promptForTools()
+    }
+
+    // Download skills
     let token = try loadToken()
     let machine = try machine()
     let whoami = whoAmI()
 
+    print("Downloading Point-Free Way skills...")
     let (data, response) = try await URLSession.shared
       .data(
         from: URL(
@@ -92,25 +197,28 @@ struct Install: AsyncParsableCommand {
     let zipURL = URL.temporaryDirectory.appending(path: UUID().uuidString)
     try data.write(to: zipURL)
 
-    // Determine if installing to current directory
+    // Determine install location
     let isCurrentDirectory = Self.isCurrentDirectoryPath(path)
-    let installURL = Self.resolveInstallURL(path: path, tool: tool)
+    let installURL = resolveInstallURL(path: path)
 
-    // Verify the install path is in the expected location (only if custom path provided)
+    // Verify the install path if custom path provided
     if path != nil {
       let installPath = installURL.path
 
-      guard Self.validateInstallPath(installPath, tool: tool) else {
+      guard Self.validateInstallPath(installPath) else {
         print("Error: Install path is not in the expected location.")
         print("")
         print("The install path must contain '/skills' in it.")
         print("")
         print("Valid options:")
-        print("  1. Use default path: pfw install --tool \(tool.rawValue)")
-        print("     Installs to: ~/.\(tool.rawValue)/skills/the-point-free-way")
+        print("  1. Use default path: pfw install")
+        print("     Installs to: ~/.pfw/skills/")
         print("")
-        print("  2. Use custom path containing '/skills':")
-        print("     pfw install --tool \(tool.rawValue) --path /your/project/.config/skills")
+        print("  2. Use local path: pfw install --local")
+        print("     Installs to: .pfw/skills/")
+        print("")
+        print("  3. Use custom path containing '/skills':")
+        print("     pfw install --path /your/project/.config/skills")
         print("")
         print("Current install path: \(installPath)")
         throw ExitCode.failure
@@ -129,19 +237,17 @@ struct Install: AsyncParsableCommand {
       }
     }
 
-    // Always merge - never remove existing files
-    // The zip contains a top-level "skills" folder, so we extract to a temp location
-    // and then move the contents of the skills folder to the target location
+    // Extract skills to install location
     let tempExtractURL = URL.temporaryDirectory.appending(path: UUID().uuidString)
     try FileManager.default.createDirectory(at: tempExtractURL, withIntermediateDirectories: true)
-
     try FileManager.default.unzipItem(at: zipURL, to: tempExtractURL)
 
-    // The zip extracts to tempExtractURL/skills/, we want to move its contents to installURL
+    // The zip extracts to tempExtractURL/skills/
     let extractedSkillsURL = tempExtractURL.appending(path: "skills")
 
     // Ensure target directory exists
-    try FileManager.default.createDirectory(at: installURL, withIntermediateDirectories: true)
+    let expandedInstallURL = URL(fileURLWithPath: NSString(string: installURL.path).expandingTildeInPath)
+    try FileManager.default.createDirectory(at: expandedInstallURL, withIntermediateDirectories: true)
 
     // Move each skill from the extracted location to the target
     let skillDirs = try FileManager.default.contentsOfDirectory(
@@ -150,9 +256,9 @@ struct Install: AsyncParsableCommand {
     )
 
     for skillURL in skillDirs {
-      let targetURL = installURL.appending(path: skillURL.lastPathComponent)
+      let targetURL = expandedInstallURL.appending(path: skillURL.lastPathComponent)
 
-      // If the skill already exists, remove it first (we're replacing individual skills, not the whole directory)
+      // If the skill already exists, remove it first
       if FileManager.default.fileExists(atPath: targetURL.path) {
         try FileManager.default.removeItem(at: targetURL)
       }
@@ -160,14 +266,33 @@ struct Install: AsyncParsableCommand {
       try FileManager.default.moveItem(at: skillURL, to: targetURL)
     }
 
-    // Clean up temp directory
+    // Clean up temp files
     try? FileManager.default.removeItem(at: tempExtractURL)
     try? FileManager.default.removeItem(at: zipURL)
 
-    if isCurrentDirectory {
-      print("Successfully merged skills into \(installURL.path)")
-    } else {
-      print("Installed and merged skills for \(tool.rawValue) into \(installURL.path)")
+    print("✓ Skills installed to \(expandedInstallURL.path)")
+
+    // Create symlinks for each selected tool (unless installing to current directory)
+    if !isCurrentDirectory {
+      print("")
+      let storageLocation = local ? "local (.pfw/skills)" : "global (~/.pfw/skills)"
+      let symlinkLocation = useWorkspace ? "workspace" : "global"
+      print("Skills stored in \(storageLocation)")
+      print("Creating \(symlinkLocation) symlinks for selected AI tools...")
+
+      for tool in selectedTools {
+        let symlinkPath = tool.symlinkPath(workspace: useWorkspace)
+        do {
+          try Self.createSymlink(from: symlinkPath, to: installURL)
+          let arrow = local ? "→ .pfw/skills" : "→ ~/.pfw/skills"
+          print("✓ \(tool.rawValue): \(symlinkPath.path) \(arrow)")
+        } catch {
+          print("✗ \(tool.rawValue): Failed to create symlink - \(error.localizedDescription)")
+        }
+      }
     }
+
+    print("")
+    print("Installation complete!")
   }
 }
