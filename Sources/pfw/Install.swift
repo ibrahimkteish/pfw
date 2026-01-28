@@ -60,7 +60,7 @@ struct Install: AsyncParsableCommand {
         sha: sha
       )
       switch response {
-      case let .data(downloadedData, etag: etag):
+      case .data(let downloadedData, etag: let etag):
         data = downloadedData
         try save(sha: etag)
       case .notModified:
