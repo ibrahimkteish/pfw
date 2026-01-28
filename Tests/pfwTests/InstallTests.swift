@@ -109,12 +109,12 @@ extension BaseSuite {
           blob/
             .codex/
               skills/
-                pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
+                pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
             .pfw/
               machine "00000000-0000-0000-0000-000000000002"
               sha "cafebeef"
               skills/
-                pfw-ComposableArchitecture/
+                ComposableArchitecture/
                   SKILL.md "# Composable Architecture"
               token "deadbeef"
         tmp/
@@ -166,17 +166,17 @@ extension BaseSuite {
             blob/
               .codex/
                 skills/
-                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
-                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/pfw-SQLiteData
+                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/SQLiteData
               .pfw/
                 machine "00000000-0000-0000-0000-000000000001"
                 sha "cafebeef"
                 skills/
-                  pfw-ComposableArchitecture/
+                  ComposableArchitecture/
                     SKILL.md "# Composable Architecture"
                     references/
                       navigation.md "# Navigation"
-                  pfw-SQLiteData/
+                  SQLiteData/
                     SKILL.md "# SQLiteData"
                 token "deadbeef"
           tmp/
@@ -186,16 +186,28 @@ extension BaseSuite {
 
       @Test func deletesPreviousPFWDirectories() async throws {
         try fileSystem.createDirectory(
-          at: URL(filePath: "/Users/blob/.codex/skills/pfw-ComposableArchitecture"),
+          at: URL(filePath: "/Users/blob/.pfw/skills/ComposableArchitecture"),
           withIntermediateDirectories: true
         )
         try fileSystem.write(
           Data("Old stuff".utf8),
-          to: URL(filePath: "/Users/blob/.codex/skills/pfw-ComposableArchitecture/SKILL.md")
+          to: URL(filePath: "/Users/blob/.pfw/skills/ComposableArchitecture/SKILL.md")
         )
         try fileSystem.createDirectory(
-          at: URL(filePath: "/Users/blob/.codex/skills/pfw-UnrecognizedSkill"),
+          at: URL(filePath: "/Users/blob/.pfw/skills/UnrecognizedSkill"),
           withIntermediateDirectories: true
+        )
+        try fileSystem.createDirectory(
+          at: URL(filePath: "/Users/blob/.codex/skills/"),
+          withIntermediateDirectories: true
+        )
+        try fileSystem.createSymbolicLink(
+          at: URL(filePath: "/Users/blob/.codex/skills/pfw-ComposableArchitecture"),
+          withDestinationURL: URL(filePath: "/Users/blob/.pfw/skills/ComposableArchitecture")
+        )
+        try fileSystem.createSymbolicLink(
+          at: URL(filePath: "/Users/blob/.codex/skills/pfw-UnrecognizedSkill"),
+          withDestinationURL: URL(filePath: "/Users/blob/.pfw/skills/UnrecognizedSkill")
         )
         assertInlineSnapshot(of: fileSystem, as: .description) {
           """
@@ -203,11 +215,14 @@ extension BaseSuite {
             blob/
               .codex/
                 skills/
-                  pfw-ComposableArchitecture/
-                    SKILL.md "Old stuff"
-                  pfw-UnrecognizedSkill/
+                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                  pfw-UnrecognizedSkill@ -> /Users/blob/.pfw/skills/UnrecognizedSkill
               .pfw/
                 machine "00000000-0000-0000-0000-000000000000"
+                skills/
+                  ComposableArchitecture/
+                    SKILL.md "Old stuff"
+                  UnrecognizedSkill/
                 token "deadbeef"
           tmp/
           """
@@ -224,17 +239,17 @@ extension BaseSuite {
             blob/
               .codex/
                 skills/
-                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
-                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/pfw-SQLiteData
+                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/SQLiteData
               .pfw/
                 machine "00000000-0000-0000-0000-000000000001"
                 sha "cafebeef"
                 skills/
-                  pfw-ComposableArchitecture/
+                  ComposableArchitecture/
                     SKILL.md "# Composable Architecture"
                     references/
                       navigation.md "# Navigation"
-                  pfw-SQLiteData/
+                  SQLiteData/
                     SKILL.md "# SQLiteData"
                 token "deadbeef"
           tmp/
@@ -272,17 +287,17 @@ extension BaseSuite {
             blob/
               .codex/
                 skills/
-                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
-                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/pfw-SQLiteData
+                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/SQLiteData
               .pfw/
                 machine "00000000-0000-0000-0000-000000000001"
                 sha "cafebeef"
                 skills/
-                  pfw-ComposableArchitecture/
+                  ComposableArchitecture/
                     SKILL.md "# Composable Architecture"
                     references/
                       navigation.md "# Navigation"
-                  pfw-SQLiteData/
+                  SQLiteData/
                     SKILL.md "# SQLiteData"
                 token "deadbeef"
           tmp/
@@ -302,17 +317,17 @@ extension BaseSuite {
             blob/
               .claude/
                 skills/
-                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
-                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/pfw-SQLiteData
+                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/SQLiteData
               .pfw/
                 machine "00000000-0000-0000-0000-000000000001"
                 sha "cafebeef"
                 skills/
-                  pfw-ComposableArchitecture/
+                  ComposableArchitecture/
                     SKILL.md "# Composable Architecture"
                     references/
                       navigation.md "# Navigation"
-                  pfw-SQLiteData/
+                  SQLiteData/
                     SKILL.md "# SQLiteData"
                 token "deadbeef"
           tmp/
@@ -331,17 +346,17 @@ extension BaseSuite {
           Users/
             blob/
               .codex/
-                pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
-                pfw-SQLiteData@ -> /Users/blob/.pfw/skills/pfw-SQLiteData
+                pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                pfw-SQLiteData@ -> /Users/blob/.pfw/skills/SQLiteData
               .pfw/
                 machine "00000000-0000-0000-0000-000000000001"
                 sha "cafebeef"
                 skills/
-                  pfw-ComposableArchitecture/
+                  ComposableArchitecture/
                     SKILL.md "# Composable Architecture"
                     references/
                       navigation.md "# Navigation"
-                  pfw-SQLiteData/
+                  SQLiteData/
                     SKILL.md "# SQLiteData"
                 token "deadbeef"
           tmp/
@@ -374,17 +389,17 @@ extension BaseSuite {
               .copilot/
                 skills/
                   dont-delete.md "Hello"
-                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/pfw-ComposableArchitecture
-                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/pfw-SQLiteData
+                  pfw-ComposableArchitecture@ -> /Users/blob/.pfw/skills/ComposableArchitecture
+                  pfw-SQLiteData@ -> /Users/blob/.pfw/skills/SQLiteData
               .pfw/
                 machine "00000000-0000-0000-0000-000000000001"
                 sha "cafebeef"
                 skills/
-                  pfw-ComposableArchitecture/
+                  ComposableArchitecture/
                     SKILL.md "# Composable Architecture"
                     references/
                       navigation.md "# Navigation"
-                  pfw-SQLiteData/
+                  SQLiteData/
                     SKILL.md "# SQLiteData"
                 token "deadbeef"
           tmp/
