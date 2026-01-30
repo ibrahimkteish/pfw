@@ -182,7 +182,8 @@ struct Install: AsyncParsableCommand {
 
       let skillDirectories = (try? fileSystem.contentsOfDirectory(at: skillsSourceURL)) ?? []
       for directory in skillDirectories {
-        let centralDestination = centralSkillsURL.appendingPathComponent(directory.lastPathComponent)
+        let centralDestination = centralSkillsURL.appendingPathComponent(
+          directory.lastPathComponent)
         try fileSystem.moveItem(at: directory, to: centralDestination)
       }
     } else if !fileSystem.fileExists(atPath: centralSkillsURL.path) {
